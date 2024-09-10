@@ -120,11 +120,22 @@ jobs:
       - name: Install required Python packages
         run: |
           python -m pip install -U pip
-          python -m pip install -U build
-          pip freeze
+          python -m pip install -U build wheel
+          python -c 'import tomllib; \
+              toml_dict = tomllib.load(open("pyproject.toml", "rb")); \
+              build_deps = toml_dict["build-system"]["requires"]; \
+              print("\n".join(build_deps))' |
+            python -m pip install -U -r /dev/stdin
+          # We need to install the build dependencies first to have
+          # repo-config, so we can easily extract the min dependencies
+          python -c 'from frequenz.repo.config.nox import util; \
+              min_deps = util.min_dependencies(); \
+              print("\n".join(min_deps))' |
+            python -m pip install -U -r /dev/stdin
+          python -m pip freeze
 
       - name: Build the source and binary distribution
-        run: python -m build
+        run: python -m build --no-isolation --skip-dependency-check
 
       - name: Upload distribution files
         uses: actions/upload-artifact@v4
